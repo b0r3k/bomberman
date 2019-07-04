@@ -1,6 +1,6 @@
 ﻿namespace bomberman
 {
-    partial class Form1
+    partial class bomberman
     {
         /// <summary>
         /// Required designer variable.
@@ -29,12 +29,43 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
+            this.buttonStart = new System.Windows.Forms.Button();
+            this.timer = new System.Windows.Forms.Timer(this.components);
+            this.SuspendLayout();
+            // 
+            // buttonStart
+            // 
+            this.buttonStart.Location = new System.Drawing.Point(9, 10);
+            this.buttonStart.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.buttonStart.Name = "buttonStart";
+            this.buttonStart.Size = new System.Drawing.Size(164, 47);
+            this.buttonStart.TabIndex = 0;
+            this.buttonStart.Text = "Start";
+            this.buttonStart.UseVisualStyleBackColor = true;
+            this.buttonStart.Click += new System.EventHandler(this.buttonStart_Click);
+            // 
+            // timer
+            // 
+            this.timer.Tick += new System.EventHandler(this.timer_Tick);
+            // 
+            // bomberman
+            // 
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Text = "Form1";
+            this.ClientSize = new System.Drawing.Size(842, 610);
+            this.Controls.Add(this.buttonStart);
+            this.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.Name = "bomberman";
+            this.Text = "Bomberman";
+            this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.bomberman_KeyUp);
+            this.ResumeLayout(false);
+
         }
 
         #endregion
+
+        private System.Windows.Forms.Button buttonStart;
+        private System.Windows.Forms.Timer timer;
     }
 }
 
