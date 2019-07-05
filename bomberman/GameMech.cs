@@ -19,15 +19,21 @@ namespace bomberman
         public int direction;
         public int range;
         public int bombTimer;
-        public int bombMax;
+        public bool isBomb;
         public abstract void MakeStep();
     }
 
-    enum ArrowPressed { none, left, up, right, down, enter, space };
+    enum ArrowPressed { none, left, up, right, down, enter, space, wkey, akey, skey, dkey };
 
-    class Man : MovingElement
+    abstract class Man : MovingElement
     {
-        public Man(Map map, int standingX, int standingY)
+        public int bombMax;
+        public bool alive = false;
+    }
+
+    class Player1 : Man
+    {
+        public Player1(Map map, int standingX, int standingY, bool isAlive)
         {
             this.map = map;
             this.x = standingX;
@@ -35,6 +41,7 @@ namespace bomberman
             this.range = 3;
             this.bombTimer = 10;
             this.bombMax = 1;
+            this.alive = isAlive;
         }
 
         public override void MakeStep()
@@ -58,6 +65,52 @@ namespace bomberman
                     newY = y + 1;
                     break;
                 case ArrowPressed.enter:
+                    map.PutBomb(x, y, range, bombTimer);
+                    break;
+                default:
+                    break;
+            }
+            if (map.IsFree(newX, newY))
+            {
+                map.Move(x, y, newX, newY);
+            }
+        }
+    }
+
+    class Player2 : Man
+    {
+        public Player2(Map map, int standingX, int standingY, bool isAlive)
+        {
+            this.map = map;
+            this.x = standingX;
+            this.y = standingY;
+            this.range = 1;
+            this.bombTimer = 10;
+            this.bombMax = 1;
+            this.alive = isAlive;
+        }
+
+        public override void MakeStep()
+        {
+            int newX = x;
+            int newY = y;
+            switch (map.arrowPressed)
+            {
+                case ArrowPressed.none:
+                    break;
+                case ArrowPressed.akey:
+                    newX = x - 1;
+                    break;
+                case ArrowPressed.wkey:
+                    newY = y - 1;
+                    break;
+                case ArrowPressed.dkey:
+                    newX = x + 1;
+                    break;
+                case ArrowPressed.skey:
+                    newY = y + 1;
+                    break;
+                case ArrowPressed.space:
                     map.PutBomb(x, y, range, bombTimer);
                     break;
                 default:
@@ -96,6 +149,7 @@ namespace bomberman
             this.y = standingY;
             this.range = thisRange;
             this.bombTimer = thisTimer;
+            this.isBomb = true;
         }
 
         public override void MakeStep()
@@ -103,7 +157,7 @@ namespace bomberman
             bombTimer = bombTimer - 1;
             if (bombTimer == 0)
             {
-                map.Explode(x, y, range);
+                map.ExplodeBomb(x, y, range);
             }
         }
     }
@@ -119,11 +173,11 @@ namespace bomberman
 
         public State state = State.notstarted;
 
-
         Bitmap[] icons;
         int sx; // velikost kosticky ikonek
 
-        public Man man;
+        public Player1 player1;
+        public Player2 player2;
         public List<MovingElement> MovingElementsNotMan;
 
         public ArrowPressed arrowPressed;
@@ -143,29 +197,72 @@ namespace bomberman
             MovingElementsNotMan.Add(bomb);
         }
 
-        public void Explode(int fromX, int fromY, int fromRange)
+        public void SolveBomb(int fromX, int fromY)
         {
-            for (int i = 1; i <= fromRange; i++)
+            char ch = board[fromX, fromY];
+            switch(ch)
             {
-                if ((i <= fromX) && board[fromX - i, fromY] == 'c')
+                case 'M':
+                    player1.alive = false;
+                    break;
+                case 'N':
+                    player2.alive = false;
+                    break;
+                case '^':
+                    DeleteMovingElement(fromX, fromY);
+                    break;
+                case 'v':
+                    DeleteMovingElement(fromX, fromY);
+                    break;
+                case '<':
+                    DeleteMovingElement(fromX, fromY);
+                    break;
+                case '>':
+                    DeleteMovingElement(fromX, fromY);
+                    break;
+                default:
+                    break;
+            }
+            board[fromX, fromY] = ' ';
+        }
+
+        public void ExplodeBomb(int fromX, int fromY, int fromRange)
+        {
+            for (int i = 0; i <= fromRange; i++)
+            {
+                if (!(i <= fromX) || (board[fromX - i, fromY] == 'X')) break;
+                else SolveBomb(fromX - i, fromY);
+            }
+            for (int i = 0; i <= fromRange; i++)
+            {
+                if (!(i < width - fromX) || (board[fromX + i, fromY] == 'X')) break;
+                else SolveBomb(fromX + i, fromY);
+            }
+            for (int i = 0; i <= fromRange; i++)
+            {
+                if (!(i <= fromY) || (board[fromX, fromY - i] == 'X')) break;
+                else SolveBomb(fromX, fromY - i);
+            }
+            for (int i = 0; i <= fromRange; i++)
+            {
+                if (!(i < height - fromY) || (board[fromX, fromY + i] == 'X')) break;
+                else SolveBomb(fromX, fromY + i);
+            }
+            //DeleteBomb(fromX, fromY);
+        }
+
+        public void DeleteBomb(int fromX, int fromY)
+        {
+            // najit pohyblivyPrvek a vyhodit ho ze seznamu :
+            for (int i = 0; i < MovingElementsNotMan.Count; i++)
+            {
+                if ((MovingElementsNotMan[i].isBomb) && (MovingElementsNotMan[i].x == fromX) && (MovingElementsNotMan[i].y == fromY))
                 {
-                    board[fromX - i, fromY] = ' ';
-                }
-                if ((i < width - fromX) && board[fromX + i, fromY] == 'c')
-                {
-                    board[fromX + i, fromY] = ' ';
-                }
-                if ((i <= fromY) && board[fromX, fromY - i] == 'c')
-                {
-                    board[fromX, fromY - i] = ' ';
-                }
-                if ((i < height - fromY) && board[fromX, fromY + i] == 'c')
-                {
-                    board[fromX, fromY + i] = ' ';
+                    MovingElementsNotMan.RemoveAt(i); // 1. vyhodit ze seznamu pohyblivych prvku...
+                    bombs[fromX, fromY] = false;                    // 2. ...a z planu!
+                    break;
                 }
             }
-            bombs[fromX, fromY] = false;
-            DeleteMovingElement(fromX, fromY);
         }
 
         public void Move(int fromX, int fromY, int toX, int toY)
@@ -177,8 +274,14 @@ namespace bomberman
             // podivat se, jestli tam nestal hrdina:
             if (c == 'M')
             {
-                man.x = toX;
-                man.y = toY;
+                player1.x = toX;
+                player1.y = toY;
+                return; // kdyz na [zY,zX] stoji hrdina, tak tam nic jineho nestoji
+            }
+            if (c == 'N')
+            {
+                player2.x = toX;
+                player2.y = toY;
                 return; // kdyz na [zY,zX] stoji hrdina, tak tam nic jineho nestoji
             }
 
@@ -218,6 +321,8 @@ namespace bomberman
             height = int.Parse(sr.ReadLine());
             bombs = new bool[width, height];
             board = new char[width, height];
+            player1 = new Player1(this, 0, 0, false);
+            player2 = new Player2(this, 0, 0, false);
 
             for (int y = 0; y < height; y++)
             {
@@ -239,7 +344,11 @@ namespace bomberman
                     switch (ch)
                     {
                         case 'M':
-                            this.man = new Man(this, x, y);
+                            this.player1 = new Player1(this, x, y, true);
+                            break;
+
+                        case 'N':
+                            this.player2 = new Player2(this, x, y, true);
                             break;
 
                         case '<':
@@ -283,13 +392,13 @@ namespace bomberman
                 windowHeight = height;
 
             // urcit LHR vyrezu:
-            int dx = man.x - windowWidth / 2;
+            int dx = player1.x - windowWidth / 2;
             if (dx < 0)
                 dx = 0;
             if (dx + windowWidth - 1 >= this.width)
                 dx = this.width - windowWidth;
 
-            int dy = man.y - windowHeight / 2;
+            int dy = player1.y - windowHeight / 2;
             if (dy < 0)
                 dy = 0;
             if (dy + windowHeight - 1 >= this.height)
@@ -304,7 +413,11 @@ namespace bomberman
 
                     char c = board[mx, my];
                     int pictureIndex = " cMB<^>vXDEe".IndexOf(c); // 0..
-                    if ((c == 'M') && bombs[mx, my])
+                    if (c == 'N')
+                    {
+                        pictureIndex = 2;
+                    }
+                    if (((c == 'M') || (c == 'N')) && bombs[mx, my])
                     {
                         pictureIndex = 9;
                     }
@@ -324,8 +437,19 @@ namespace bomberman
             {
                 mov.MakeStep();
             }
+            if (player1.alive)
+            {
+                player1.MakeStep();
+            }
+            if (player2.alive)
+            {
+                player2.MakeStep();
+            }
 
-            man.MakeStep();
+            if (!(player1.alive || player2.alive))
+            {
+                state = State.lost;
+            }
         }
 
         public bool IsFree(int x, int y)

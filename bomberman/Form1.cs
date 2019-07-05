@@ -83,6 +83,26 @@ namespace bomberman
                 arrowPressed = ArrowPressed.space;
                 return true;
             }
+            if (keyData == Keys.W)
+            {
+                arrowPressed = ArrowPressed.wkey;
+                return true;
+            }
+            if (keyData == Keys.A)
+            {
+                arrowPressed = ArrowPressed.akey;
+                return true;
+            }
+            if (keyData == Keys.S)
+            {
+                arrowPressed = ArrowPressed.skey;
+                return true;
+            }
+            if (keyData == Keys.D)
+            {
+                arrowPressed = ArrowPressed.dkey;
+                return true;
+            }
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
