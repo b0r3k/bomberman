@@ -544,7 +544,7 @@ namespace bomberman
                 }
             }
             sr.Close();
-            str = "RrSBTt";
+            str = "RrSB";
             rnd = new Random();
         }
 
@@ -580,22 +580,18 @@ namespace bomberman
                     int my = dy + y; // index do mapy
 
                     char c = board[mx, my];
-                    int pictureIndex = " cMB<^>vXDEe".IndexOf(c); // 0..
-                    if (c == 'N')
-                    {
-                        pictureIndex = 2;
-                    }
+                    int pictureIndex = "^>v<MN..cX...... ".IndexOf(c); // 0..
                     if (((c == 'M') || (c == 'N')) && bombs[mx, my])
                     {
-                        pictureIndex = 9;
+                        pictureIndex += 2;
                     }
                     else if ((c == ' ') && bombs[mx, my])
                     {
-                        pictureIndex = 3;
+                        pictureIndex = 14;
                     }
                     else if (bonuses[mx, my] != '0')
                     {
-                        pictureIndex = 10;
+                        pictureIndex = 10 + "SBRr".IndexOf(bonuses[mx, my]);
                     }
                     g.DrawImage(icons[pictureIndex], x * sx, y * sx);
                 }
