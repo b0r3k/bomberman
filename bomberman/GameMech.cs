@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace bomberman
 {
@@ -18,9 +19,12 @@ namespace bomberman
         public int y;
         public int direction;
         public int range;
+        public int speed;
         public int bombTimer;
         public bool isBomb;
+        public Man owner;
         public abstract void MakeStep();
+        public bool rotated;
     }
 
     enum ArrowPressed { none, left, up, right, down, enter, space, wkey, akey, skey, dkey };
@@ -28,7 +32,35 @@ namespace bomberman
     abstract class Man : MovingElement
     {
         public int bombMax;
+        public int bombNow;
         public bool alive = false;
+        public void SolveBonus(int fromX, int fromY)
+        {
+            char ch = map.bonuses[fromX, fromY];
+            switch (ch)
+            {
+                case 'R':
+                    this.range++;
+                    break;
+                case 'r':
+                    this.range--;
+                    break;
+                case 'S':
+                    if (this.speed > 0) this.speed--;
+                    break;
+                case 'B':
+                    this.bombMax++;
+                    break;
+                /*case 'T':
+                    this.bombTimer = this.bombTimer + 2;
+                    break;
+                case 't':
+                    this.bombTimer = this.bombTimer - 2;
+                    break;*/
+                default:
+                    break;
+            }
+        }
     }
 
     class Player1 : Man
@@ -38,17 +70,38 @@ namespace bomberman
             this.map = map;
             this.x = standingX;
             this.y = standingY;
-            this.range = 3;
-            this.bombTimer = 10;
+            this.range = 1;
+            this.bombTimer = 20;
             this.bombMax = 1;
             this.alive = isAlive;
+            this.bombNow = 0;
+            this.speed = 1;
         }
 
+        int timer = 1;
         public override void MakeStep()
         {
             int newX = x;
             int newY = y;
-            switch (map.arrowPressed)
+
+            timer--;
+            if (timer <= 0)
+            {
+                if (Keyboard.IsKeyDown(Key.Up)) newY = y - 1;
+                else if (Keyboard.IsKeyDown(Key.Right)) newX = x + 1;
+                else if (Keyboard.IsKeyDown(Key.Down)) newY = y + 1;
+                else if (Keyboard.IsKeyDown(Key.Left)) newX = x - 1;
+                else if (Keyboard.IsKeyDown(Key.Enter))
+                {
+                    if (this.bombNow < this.bombMax)
+                    {
+                        map.PutBomb(x, y, range, bombTimer, map.player1);
+                        this.bombNow++;
+                    }
+                }
+                timer = this.speed;
+            }
+            /*switch (map.arrowPressed)
             {
                 case ArrowPressed.none:
                     break;
@@ -65,14 +118,23 @@ namespace bomberman
                     newY = y + 1;
                     break;
                 case ArrowPressed.enter:
-                    map.PutBomb(x, y, range, bombTimer);
+                    if (this.bombNow < this.bombMax)
+                    {
+                        map.PutBomb(x, y, range, bombTimer, map.player1);
+                        this.bombNow++;
+                    }
                     break;
                 default:
                     break;
-            }
+            }*/
             if (map.IsFree(newX, newY))
             {
                 map.Move(x, y, newX, newY);
+                if (map.bonuses[newX, newY] != '0')
+                {
+                    SolveBonus(newX, newY);
+                    map.bonuses[newX, newY] = '0';
+                }
             }
         }
     }
@@ -88,61 +150,118 @@ namespace bomberman
             this.bombTimer = 10;
             this.bombMax = 1;
             this.alive = isAlive;
+            this.bombNow = 0;
+            this.speed = 1;
         }
 
+        int timer = 1;
         public override void MakeStep()
         {
             int newX = x;
             int newY = y;
-            switch (map.arrowPressed)
+
+            timer--;
+            if (timer <= 0)
             {
-                case ArrowPressed.none:
-                    break;
-                case ArrowPressed.akey:
-                    newX = x - 1;
-                    break;
-                case ArrowPressed.wkey:
-                    newY = y - 1;
-                    break;
-                case ArrowPressed.dkey:
-                    newX = x + 1;
-                    break;
-                case ArrowPressed.skey:
-                    newY = y + 1;
-                    break;
-                case ArrowPressed.space:
-                    map.PutBomb(x, y, range, bombTimer);
-                    break;
-                default:
-                    break;
+                if (Keyboard.IsKeyDown(Key.W)) newY = y - 1;
+                else if (Keyboard.IsKeyDown(Key.D)) newX = x + 1;
+                else if (Keyboard.IsKeyDown(Key.S)) newY = y + 1;
+                else if (Keyboard.IsKeyDown(Key.A)) newX = x - 1;
+                else if (Keyboard.IsKeyDown(Key.Space))
+                {
+                    if (this.bombNow < this.bombMax)
+                    {
+                        map.PutBomb(x, y, range, bombTimer, map.player2);
+                        this.bombNow++;
+                    }
+                }
+                timer = this.speed;
             }
+
             if (map.IsFree(newX, newY))
             {
                 map.Move(x, y, newX, newY);
+                if (map.bonuses[newX, newY] != '0')
+                {
+                    SolveBonus(newX, newY);
+                    map.bonuses[newX, newY] = '0';
+                }
             }
+        }
+    }   
+
+    public struct vector
+    {
+        public int x, y;
+        public vector(int a, int b)
+        {
+            x = a;
+            y = b;
         }
     }
 
     class Monster : MovingElement
     {
+        int monsterTimer;
         public Monster(Map map, int standingX, int standingY, char chDirection)
         {
             this.map = map;
             this.x = standingX;
             this.y = standingY;
-
-            direction = "<^>v".IndexOf(chDirection);
+            this.rotated = false;
+            direction = ">v<^".IndexOf(chDirection);
+            monsterTimer = 3;
         }
 
         public override void MakeStep()
         {
-            //
+            void OneStep()
+            {
+                int newX;
+                int newY;
+                newX = x + Map.vectors[this.direction].x;
+                newY = y + Map.vectors[this.direction].y;
+                if (map.IsPlayer(newX, newY)) map.KillPlayer(newX, newY);
+                map.Move(x, y, newX, newY);
+            }
+            void RotateLeft()
+            {
+                this.direction = (this.direction + 3) % 4;
+                map.ChangeDir(x, y, direction);
+            }
+            void RotateRight()
+            {
+                this.direction = (this.direction + 1) % 4;
+                map.ChangeDir(x, y, direction);
+            }
+
+            monsterTimer--;
+            if (monsterTimer == 0)
+            {
+                if (!(map.RightFree(x, y, direction)))
+                {
+                    if (!(map.ForwardFree(x, y, direction))) RotateLeft();
+                    else OneStep();
+                    rotated = false;
+                }
+                else if (rotated)
+                {
+                    OneStep();
+                    rotated = false;
+                }
+                else
+                {
+                    RotateRight();
+                    rotated = true;
+                }
+                monsterTimer = 3;
+            }
         }
     }
 
     class Bomb : MovingElement
     {
-        public Bomb(Map map, int standingX, int standingY, int thisRange, int thisTimer)
+        public Bomb(Map map, int standingX, int standingY, int thisRange, int thisTimer, Man fromMan)
         {
             this.map = map;
             this.x = standingX;
@@ -150,14 +269,69 @@ namespace bomberman
             this.range = thisRange;
             this.bombTimer = thisTimer;
             this.isBomb = true;
+            this.owner = fromMan;
+        }
+
+        public void SolveBomb(int fromX, int fromY)
+        {
+            char ch = map.WhatsThere(fromX, fromY);
+            switch (ch)
+            {
+                case 'M':
+                    map.player1.alive = false;
+                    break;
+                case 'N':
+                    map.player2.alive = false;
+                    break;
+                case '^':
+                case 'v':
+                case '<':
+                case '>':
+                    map.DeleteMovingElement(fromX, fromY);
+                    map.monsterCount--;
+                    if ((map.monsterCount == 0) && (map.player1.alive || map.player2.alive)) map.state = State.won;
+                    break;
+                case 'c':
+                    map.CreateBonus(fromX, fromY);
+                    break;
+                default:
+                    break;
+            }
+            map.EmptySpace(fromX, fromY);
+        }
+
+        public void ExplodeBomb(int fromX, int fromY, int fromRange)
+        {
+            this.owner.bombNow--;
+            for (int i = 0; i <= fromRange; i++)
+            {
+                if (!(i <= fromX) || map.IsWall(fromX - i, fromY)) break;
+                else SolveBomb(fromX - i, fromY);
+            }
+            for (int i = 0; i <= fromRange; i++)
+            {
+                if (!(i < map.width - fromX) || map.IsWall(fromX + i, fromY)) break;
+                else SolveBomb(fromX + i, fromY);
+            }
+            for (int i = 0; i <= fromRange; i++)
+            {
+                if (!(i <= fromY) || map.IsWall(fromX, fromY - i)) break;
+                else SolveBomb(fromX, fromY - i);
+            }
+            for (int i = 0; i <= fromRange; i++)
+            {
+                if (!(i < map.height - fromY) || map.IsWall(fromX, fromY + i)) break;
+                else SolveBomb(fromX, fromY + i);
+            }
+            map.DeleteBomb(fromX, fromY);
         }
 
         public override void MakeStep()
         {
-            bombTimer = bombTimer - 1;
+            bombTimer--;
             if (bombTimer == 0)
             {
-                map.ExplodeBomb(x, y, range);
+                ExplodeBomb(x, y, range);
             }
         }
     }
@@ -168,8 +342,13 @@ namespace bomberman
     {
         private char[,] board;
         private bool[,] bombs;
-        int width;
-        int height;
+        public char[,] bonuses;
+        public int width;
+        public int height;
+        public int monsterCount;
+        int prob;
+        string str;
+        Random rnd;
 
         public State state = State.notstarted;
 
@@ -179,76 +358,24 @@ namespace bomberman
         public Player1 player1;
         public Player2 player2;
         public List<MovingElement> MovingElementsNotMan;
+        public Queue<int> ToDelete;
 
         public ArrowPressed arrowPressed;
 
 
-        public Map(string pathMap, string pathIcons)
+        public Map(string pathMap, string pathIcons, string pathBonus)
         {
             LoadIcons(pathIcons);
             LoadMap(pathMap);
+            LoadBonus(pathBonus);
             state = State.running;
         }
 
-        public void PutBomb(int fromX, int fromY, int fromRange, int fromTimer)
+        public void PutBomb(int fromX, int fromY, int fromRange, int fromTimer, Man fromMan)
         {
             bombs[fromX, fromY] = true;
-            Bomb bomb = new Bomb(this, fromX, fromY, fromRange, fromTimer);
+            Bomb bomb = new Bomb(this, fromX, fromY, fromRange, fromTimer, fromMan);
             MovingElementsNotMan.Add(bomb);
-        }
-
-        public void SolveBomb(int fromX, int fromY)
-        {
-            char ch = board[fromX, fromY];
-            switch(ch)
-            {
-                case 'M':
-                    player1.alive = false;
-                    break;
-                case 'N':
-                    player2.alive = false;
-                    break;
-                case '^':
-                    DeleteMovingElement(fromX, fromY);
-                    break;
-                case 'v':
-                    DeleteMovingElement(fromX, fromY);
-                    break;
-                case '<':
-                    DeleteMovingElement(fromX, fromY);
-                    break;
-                case '>':
-                    DeleteMovingElement(fromX, fromY);
-                    break;
-                default:
-                    break;
-            }
-            board[fromX, fromY] = ' ';
-        }
-
-        public void ExplodeBomb(int fromX, int fromY, int fromRange)
-        {
-            for (int i = 0; i <= fromRange; i++)
-            {
-                if (!(i <= fromX) || (board[fromX - i, fromY] == 'X')) break;
-                else SolveBomb(fromX - i, fromY);
-            }
-            for (int i = 0; i <= fromRange; i++)
-            {
-                if (!(i < width - fromX) || (board[fromX + i, fromY] == 'X')) break;
-                else SolveBomb(fromX + i, fromY);
-            }
-            for (int i = 0; i <= fromRange; i++)
-            {
-                if (!(i <= fromY) || (board[fromX, fromY - i] == 'X')) break;
-                else SolveBomb(fromX, fromY - i);
-            }
-            for (int i = 0; i <= fromRange; i++)
-            {
-                if (!(i < height - fromY) || (board[fromX, fromY + i] == 'X')) break;
-                else SolveBomb(fromX, fromY + i);
-            }
-            //DeleteBomb(fromX, fromY);
         }
 
         public void DeleteBomb(int fromX, int fromY)
@@ -258,8 +385,10 @@ namespace bomberman
             {
                 if ((MovingElementsNotMan[i].isBomb) && (MovingElementsNotMan[i].x == fromX) && (MovingElementsNotMan[i].y == fromY))
                 {
-                    MovingElementsNotMan.RemoveAt(i); // 1. vyhodit ze seznamu pohyblivych prvku...
-                    bombs[fromX, fromY] = false;                    // 2. ...a z planu!
+                    ToDelete.Enqueue(i);
+                    bombs[fromX, fromY] = false;
+                    //MovingElementsNotMan[i].delete = true;
+                    //map.MovingElementsNotMan.RemoveAt(i); // 1. vyhodit ze seznamu pohyblivych prvku...
                     break;
                 }
             }
@@ -278,7 +407,7 @@ namespace bomberman
                 player1.y = toY;
                 return; // kdyz na [zY,zX] stoji hrdina, tak tam nic jineho nestoji
             }
-            if (c == 'N')
+           if (c == 'N')
             {
                 player2.x = toX;
                 player2.y = toY;
@@ -298,6 +427,11 @@ namespace bomberman
 
         }
 
+        public void ChangeDir(int fromX, int fromY, int dir)
+        {
+            board[fromX, fromY] = directions[dir];
+        }
+
         public void DeleteMovingElement(int fromX, int fromY)
         {
             // najit pohyblivyPrvek a vyhodit ho ze seznamu :
@@ -305,10 +439,22 @@ namespace bomberman
             {
                 if ((MovingElementsNotMan[i].x == fromX) && (MovingElementsNotMan[i].y == fromY))
                 {
-                    MovingElementsNotMan.RemoveAt(i); // 1. vyhodit ze seznamu pohyblivych prvku...
+                    //MovingElementsNotMan[i].delete = true;
+                    ToDelete.Enqueue(i);
+                    //MovingElementsNotMan.RemoveAt(i); // 1. vyhodit ze seznamu pohyblivych prvku...
                     board[fromX, fromY] = ' ';                    // 2. ...a z planu!
                     break;
                 }
+            }
+        }
+
+        public void CreateBonus(int fromX, int fromY)
+        {
+            //s určitou pravděpodobností dát na místo bonusy (rychlost, víc bomb, dosah bomb)
+            prob = rnd.Next(0, 40);
+            if (prob < 4)
+            {
+                bonuses[fromX, fromY] = str[prob];
             }
         }
 
@@ -323,6 +469,8 @@ namespace bomberman
             board = new char[width, height];
             player1 = new Player1(this, 0, 0, false);
             player2 = new Player2(this, 0, 0, false);
+            ToDelete = new Queue<int>();
+            monsterCount = 0;
 
             for (int y = 0; y < height; y++)
             {
@@ -355,6 +503,7 @@ namespace bomberman
                         case '^':
                         case '>':
                         case 'v':
+                            monsterCount++;
                             Monster monster = new Monster(this, x, y, ch);
                             MovingElementsNotMan.Add(monster);
                             break;
@@ -378,6 +527,25 @@ namespace bomberman
                 Rectangle rect = new Rectangle(i * sx, 0, sx, sx);
                 icons[i] = bmp.Clone(rect, System.Drawing.Imaging.PixelFormat.DontCare);
             }
+        }
+
+        public void LoadBonus(string path) //přepsat tak, aby bylo součástí mapy a cestu k bonusům dostávala jako další parametr, jen načítala do nového pole
+        {
+            System.IO.StreamReader sr = new System.IO.StreamReader(path);
+            bonuses = new char[width, height];
+
+            for (int y = 0; y < height; y++)
+            {
+                string line = sr.ReadLine();
+                for (int x = 0; x < width; x++)
+                {
+                    char ch = line[x];
+                    bonuses[x, y] = ch;
+                }
+            }
+            sr.Close();
+            str = "RrSBTt";
+            rnd = new Random();
         }
 
         public void DrawMap(Graphics g, int windowWidthPixels, int windowHeightPixels)
@@ -425,14 +593,18 @@ namespace bomberman
                     {
                         pictureIndex = 3;
                     }
+                    else if (bonuses[mx, my] != '0')
+                    {
+                        pictureIndex = 10;
+                    }
                     g.DrawImage(icons[pictureIndex], x * sx, y * sx);
                 }
             }
         }
 
-        public void MoveAll(ArrowPressed arrowPressed)
+        public void MoveAll()
         {
-            this.arrowPressed = arrowPressed;
+            //this.arrowPressed = arrowPressed;
             foreach (MovingElement mov in MovingElementsNotMan)
             {
                 mov.MakeStep();
@@ -452,6 +624,32 @@ namespace bomberman
             }
         }
 
+        public void DeleteGarbage()
+        {
+            int i = 0;
+            while (ToDelete.Count > 0)
+            {
+                MovingElementsNotMan.RemoveAt(ToDelete.Dequeue() - i);
+                i++;
+            }
+        }
+
+        public void KillPlayer(int x, int y)
+        {
+            if (board[x, y] == 'M') player1.alive = false;
+            if (board[x, y] == 'N') player2.alive = false;
+        }
+
+        public void EmptySpace(int x, int y)
+        {
+            board[x, y] = ' ';
+        }
+
+        public char WhatsThere(int x, int y)
+        {
+            return board[x, y];
+        }
+
         public bool IsFree(int x, int y)
         {
             return (board[x, y] == ' ');
@@ -460,6 +658,57 @@ namespace bomberman
         public bool IsClay(int x, int y)
         {
             return (board[x, y] == 'c');
+        }
+
+        public bool IsWall(int x, int y)
+        {
+            return (board[x, y] == 'X');
+        }
+
+        public bool IsPlayer(int x, int y)
+        {
+            return ((board[x, y] == 'M') || (board[x, y] == 'N'));
+        }
+
+        public static string directions;
+        public static vector[] vectors;
+
+        public static void InitDirections()
+        {
+            directions = ">v<^";
+            vectors = new vector[4];
+            vectors[0] = new vector(0, 1);
+            vectors[1] = new vector(1, 0);
+            vectors[2] = new vector(0, -1);
+            vectors[3] = new vector(-1, 0);
+        }
+
+        public bool ForwardFree(int a, int b, int dir)
+        {
+            if (IsFree(a + vectors[dir].x, b + vectors[dir].y) || IsPlayer(a + vectors[dir].x, b + vectors[dir].y))
+            {
+                if (bombs[a + vectors[dir].x, b + vectors[dir].y] == false) return true;
+                else return false;
+            }
+            else return false;
+        }
+
+        public bool RightFree(int a, int b, int dir)
+        {
+            if (IsFree(a + vectors[(dir + 1) % 4].x, b + vectors[(dir + 1) % 4].y) || IsPlayer(a + vectors[(dir + 1) % 4].x, b + vectors[(dir + 1) % 4].y))
+            {
+                if (bombs[a + vectors[(dir + 1) % 4].x, b + vectors[(dir + 1) % 4].y] == false) return true;
+                else return false;
+            }
+            else return false;
+        }
+
+        public bool LeftFree(int a, int b, int dir)
+        {
+            if ((IsFree((a + vectors[(dir + 3) % 4].x), (b + vectors[(dir + 3) % 4].y))) || (IsPlayer((a + vectors[(dir + 3) % 4].x), (b + vectors[(dir + 3) % 4].y))))
+                if (!(bombs[(a + vectors[(dir + 3) % 4].x), (b + vectors[(dir + 3) % 4].y)])) return true;
+                else return false;
+            else return false;
         }
     }
 }

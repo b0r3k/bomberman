@@ -16,16 +16,18 @@ namespace bomberman
         {
             InitializeComponent();
         }
-
         Map map;
         Graphics g;
+        int level;
 
         private void buttonStart_Click(object sender, EventArgs e)
         {
             g = CreateGraphics();
-            map = new Map("board.txt.", "icons.png");
-            timer.Enabled = true;
+            level = 0;
             buttonStart.Visible = false;
+            buttonStart.Enabled = false;
+            Map.InitDirections();
+            PlayLevel(level);
         }
 
         private void timer_Tick(object sender, EventArgs e)
@@ -33,25 +35,65 @@ namespace bomberman
             switch (map.state)
             {
                 case State.running:
-                    map.MoveAll(arrowPressed);
+                    map.MoveAll();
+                    map.DeleteGarbage();
                     map.DrawMap(g, ClientSize.Width, ClientSize.Height);
                     break;
                 case State.won:
                     timer.Enabled = false;
-                    MessageBox.Show("Vyhráli jste!");
+                    level++;
+                    if (level == 10)
+                    {
+                        level = 0;
+                        var endResult = MessageBox.Show("Hrát znovu?", "Gratulujeme! Dokončili jste hru!", MessageBoxButtons.YesNo);
+                        if (endResult == DialogResult.Yes)
+                        {
+                            PlayLevel(level);
+                        }
+                        else
+                        {
+                            this.Close();
+                        }
+                    }
+                    else
+                    {
+                        var wonResult = MessageBox.Show("Poustoupit do další úrovně?", "Úroveň dokončena!", MessageBoxButtons.YesNo);
+                        if (wonResult == DialogResult.Yes)
+                        {
+                            PlayLevel(level);
+                        }
+                    }
                     break;
                 case State.lost:
                     timer.Enabled = false;
-                    MessageBox.Show("Prohráli jste!");
+                    var lostResult = MessageBox.Show("Zkusit úroveň znovu?", "Prohráli jste!", MessageBoxButtons.YesNo);
+                    if (lostResult == DialogResult.Yes)
+                    {
+                        PlayLevel(level);
+                    }
+                    else
+                    {
+                        this.Close();
+                    }
                     break;
                 default:
                     break;
             }
         }
 
+        void PlayLevel(int whatLevel)
+        {
+            g.Clear(Color.Black);
+            map = new Map("board" + whatLevel.ToString() + ".txt", "icons.png", "bonus" + whatLevel.ToString() + ".txt");
+            map.DeleteGarbage();
+            map.DrawMap(g, ClientSize.Width, ClientSize.Height);
+            map.state = State.running;
+            timer.Enabled = true;
+        }
+
         ArrowPressed arrowPressed = ArrowPressed.none;
 
-        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        /*protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
             if (keyData == Keys.Up)
             {
@@ -104,7 +146,7 @@ namespace bomberman
                 return true;
             }
             return base.ProcessCmdKey(ref msg, keyData);
-        }
+        }*/
 
         private void bomberman_KeyUp(object sender, KeyEventArgs e)
         {
