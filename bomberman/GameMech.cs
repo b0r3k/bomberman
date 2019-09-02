@@ -272,8 +272,12 @@ namespace bomberman
             this.owner = fromMan;
         }
 
+        bool wasClay = false;
+
         public void SolveBomb(int fromX, int fromY)
         {
+            map.explosions[fromX, fromY] = true;
+            wasClay = false;
             char ch = map.WhatsThere(fromX, fromY);
             switch (ch)
             {
@@ -293,6 +297,7 @@ namespace bomberman
                     break;
                 case 'c':
                     map.CreateBonus(fromX, fromY);
+                    wasClay = true;
                     break;
                 default:
                     break;
@@ -307,21 +312,25 @@ namespace bomberman
             {
                 if (!(i <= fromX) || map.IsWall(fromX - i, fromY)) break;
                 else SolveBomb(fromX - i, fromY);
+                if (wasClay) break;
             }
             for (int i = 0; i <= fromRange; i++)
             {
                 if (!(i < map.width - fromX) || map.IsWall(fromX + i, fromY)) break;
                 else SolveBomb(fromX + i, fromY);
+                if (wasClay) break;
             }
             for (int i = 0; i <= fromRange; i++)
             {
                 if (!(i <= fromY) || map.IsWall(fromX, fromY - i)) break;
                 else SolveBomb(fromX, fromY - i);
+                if (wasClay) break;
             }
             for (int i = 0; i <= fromRange; i++)
             {
                 if (!(i < map.height - fromY) || map.IsWall(fromX, fromY + i)) break;
                 else SolveBomb(fromX, fromY + i);
+                if (wasClay) break;
             }
             map.DeleteBomb(fromX, fromY);
         }
@@ -343,6 +352,7 @@ namespace bomberman
         private char[,] board;
         private bool[,] bombs;
         public char[,] bonuses;
+        public bool[,] explosions;
         public int width;
         public int height;
         public int monsterCount;
@@ -454,7 +464,7 @@ namespace bomberman
             prob = rnd.Next(0, 40);
             if (prob < 4)
             {
-                bonuses[fromX, fromY] = str[prob];
+                bonuses[fromX, fromY] = "SBRr"[prob];
             }
         }
 
@@ -467,6 +477,7 @@ namespace bomberman
             height = int.Parse(sr.ReadLine());
             bombs = new bool[width, height];
             board = new char[width, height];
+            explosions = new bool[width, height];
             player1 = new Player1(this, 0, 0, false);
             player2 = new Player2(this, 0, 0, false);
             ToDelete = new Queue<int>();
@@ -544,7 +555,6 @@ namespace bomberman
                 }
             }
             sr.Close();
-            str = "RrSB";
             rnd = new Random();
         }
 
@@ -581,7 +591,12 @@ namespace bomberman
 
                     char c = board[mx, my];
                     int pictureIndex = "^>v<MN..cX...... ".IndexOf(c); // 0..
-                    if (((c == 'M') || (c == 'N')) && bombs[mx, my])
+                    if (explosions[mx, my])
+                    {
+                        pictureIndex = 15;
+                        explosions[mx, my] = false;
+                    }
+                    else if (((c == 'M') || (c == 'N')) && bombs[mx, my])
                     {
                         pictureIndex += 2;
                     }
@@ -589,7 +604,7 @@ namespace bomberman
                     {
                         pictureIndex = 14;
                     }
-                    else if (bonuses[mx, my] != '0')
+                    else if ((bonuses[mx, my] != '0') && ("^>v<MN..cX...... ".IndexOf(c) > 3))
                     {
                         pictureIndex = 10 + "SBRr".IndexOf(bonuses[mx, my]);
                     }

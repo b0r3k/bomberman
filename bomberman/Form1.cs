@@ -19,13 +19,20 @@ namespace bomberman
         Map map;
         Graphics g;
         int level;
+        bool twoPlayers = false;
 
         private void buttonStart_Click(object sender, EventArgs e)
         {
+            this.WindowState = FormWindowState.Maximized;
+            this.MinimumSize = this.Size;
+            this.MaximumSize = this.Size;
             g = CreateGraphics();
             level = 0;
             buttonStart.Visible = false;
             buttonStart.Enabled = false;
+            button2P.Visible = false;
+            button2P.Enabled = false;
+            label1.Visible = false;
             Map.InitDirections();
             PlayLevel(level);
         }
@@ -84,7 +91,8 @@ namespace bomberman
         void PlayLevel(int whatLevel)
         {
             g.Clear(Color.Black);
-            map = new Map("board" + whatLevel.ToString() + ".txt", "icons.png", "bonus" + whatLevel.ToString() + ".txt");
+            if (twoPlayers) map = new Map("2board" + whatLevel.ToString() + ".txt", "icons.png", "bonus" + whatLevel.ToString() + ".txt");
+            else map = new Map("board" + whatLevel.ToString() + ".txt", "icons.png", "bonus" + whatLevel.ToString() + ".txt");
             map.DeleteGarbage();
             map.DrawMap(g, ClientSize.Width, ClientSize.Height);
             map.state = State.running;
@@ -151,6 +159,23 @@ namespace bomberman
         private void bomberman_KeyUp(object sender, KeyEventArgs e)
         {
             arrowPressed = ArrowPressed.none;
+        }
+
+        private void button2P_Click(object sender, EventArgs e)
+        {
+            this.WindowState = FormWindowState.Maximized;
+            this.MinimumSize = this.Size;
+            this.MaximumSize = this.Size;
+            g = CreateGraphics();
+            level = 0;
+            twoPlayers = true;
+            buttonStart.Visible = false;
+            buttonStart.Enabled = false;
+            button2P.Visible = false;
+            button2P.Enabled = false;
+            label1.Visible = false;
+            Map.InitDirections();
+            PlayLevel(level);
         }
     }
 }
