@@ -8,11 +8,8 @@ using System.Windows.Input;
 
 namespace bomberman
 {
-    abstract class Element
-    {
-    }
 
-    abstract class MovingElement : Element
+    abstract class MovingElement
     {
         public Map map;
         public int x;
@@ -44,7 +41,7 @@ namespace bomberman
                     if (this.range > 1) this.range--;
                     break;
                 case 'S':
-                    if (this.speed > 0) this.speed--;
+                    if (this.speed > 1) this.speed--;
                     break;
                 case 'B':
                     this.bombMax++;
@@ -543,7 +540,7 @@ namespace bomberman
                     int my = dy + y;
 
                     char c = board[mx, my];
-                    int pictureIndex = "^>v<MN..cX...... ".IndexOf(c);      //choose index of picture based on the map
+                    int pictureIndex = "<v>^MN..cX...... ".IndexOf(c);      //choose index of picture based on the map
                     if (explosions[mx, my])     //if there's explosion, there's nothing else
                     {
                         pictureIndex = 15;
